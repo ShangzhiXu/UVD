@@ -77,24 +77,24 @@ int main(int argc, char ** argv)
 
     //uvd->runOnModule(pag);
     ICFG* icfg = pag->getICFG();
-    int a = 1;
+
     for(auto Node = icfg->begin(); Node != icfg->end(); Node++){
-        auto n = (IntraICFGNode*)Node->second;
-        string b = n->toString();
-        const SVFInstruction* svfstmts = const_cast<SVFInstruction*>(n->getInst());;
-        if (a > 3)
-        {
+        auto node = Node->second;
+
+        string b = node->toString();
+        if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(node)){
+            const SVFInstruction* svfstmts = const_cast<SVFInstruction*>(intraNode->getInst());;
             auto c = svfstmts->toString();
             const Instruction* inst = static_cast<const Instruction*>(
                 llvmModuleSet->getLLVMInst(svfstmts));
-           //here, we successfully get the instruction from the ICFG nodes
+            //here, we successfully get the instruction from the ICFG nodes
             std::string str;
             llvm::raw_string_ostream ss(str);
             inst->print(ss);
             ss.flush();
             int d = 0;
         }
-        a += 1;
+
     }
     delete[] arg_value;
 
