@@ -66,11 +66,12 @@ void AndersenWaveDiff::solveWorklist()
     }
 
     // New nodes will be inserted into workList during processing.
+    // Seems that in the worklist are all the instructions
     while (!isWorklistEmpty())
     {
         NodeID nodeId = popFromWorklist();
         // process nodes in worklist
-        postProcessNode(nodeId);
+        postProcessNode(nodeId);// handle load and store here
     }
 }
 

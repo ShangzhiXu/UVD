@@ -77,25 +77,42 @@ int main(int argc, char ** argv)
 
     //uvd->runOnModule(pag);
     ICFG* icfg = pag->getICFG();
+    NodeID nodeid = 1;
+    ICFGNode* iNode = icfg->getICFGNode(nodeid);
+    FIFOWorkList<const ICFGNode*> worklist;
+    string string1 = iNode->toString();
+    Set<const ICFGNode*> visited;
+    worklist.push(iNode);
 
-    for(auto Node = icfg->begin(); Node != icfg->end(); Node++){
-        auto node = Node->second;
-
-        string b = node->toString();
-        if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(node)){
-            const SVFInstruction* svfstmts = const_cast<SVFInstruction*>(intraNode->getInst());;
-            auto c = svfstmts->toString();
-            const Instruction* inst = static_cast<const Instruction*>(
-                llvmModuleSet->getLLVMInst(svfstmts));
-            //here, we successfully get the instruction from the ICFG nodes
-            std::string str;
-            llvm::raw_string_ostream ss(str);
-            inst->print(ss);
-            ss.flush();
-            int d = 0;
+    /// Traverse along VFG
+    while (!worklist.empty())
+    {
+        const ICFGNode* vNode = worklist.pop();
+        for (ICFGNode::const_iterator it = vNode->OutEdgeBegin(), eit = vNode->OutEdgeEnd(); it != eit; ++it)
+        {
+            ICFGEdge* edge = *it;
+            ICFGNode* succNode = edge->getDstNode();
+            if (visited.find(succNode) == visited.end())
+            {
+                visited.insert(succNode);
+                if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(succNode)){
+                    const SVFInstruction* svfstmts = const_cast<SVFInstruction*>(intraNode->getInst());
+                    const Instruction* inst = static_cast<const Instruction*>(
+                        llvmModuleSet->getLLVMInst(svfstmts));
+                    //here, we successfully get the instruction from the ICFG nodes
+                    std::string str;
+                    llvm::raw_string_ostream ss(str);
+                    inst->print(ss);
+                    ss.flush();
+                    cout << str << endl;
+                }
+                worklist.push(succNode);
+            }
         }
-
     }
+
+
+    icfg->dump("icfg_initial");
     delete[] arg_value;
 
     return 0;

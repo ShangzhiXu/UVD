@@ -140,7 +140,7 @@ void ICFGBuilder::processFunBody(SVFModule* svfModule,WorkList& worklist)
                                    svfModule->getSrcSnkSet().end(),
                                    svfcallinst->getCalledFunction())));
 
-                        if (srcsnk != *svfModule->getSrcSnkSet().end())
+                        if (srcsnk != *svfModule->getSrcSnkSet().end() || isExtCall(svfcallinst->getCalledFunction()))
                         {
                             //handle alloc and free
                             IntraICFGNode* intraICFGNode = icfg->addIntraBlock(svfinst);

@@ -49,18 +49,18 @@ void SrcSnkDDA::initialize(SVFModule* module)
         svfg =  memSSA.buildPTROnlySVFG(ander);
     setGraph(memSSA.getSVFG());
     ptaCallGraph = ander->getPTACallGraph();
-    //AndersenWaveDiff::releaseAndersenWaveDiff();
+    AndersenWaveDiff::releaseAndersenWaveDiff();
     /// allocate control-flow graph branch conditions
     getSaberCondAllocator()->allocate(getPAG()->getModule());
 
-    initSrcs();
-    initSnks();
+   // initSrcs();
+   // initSnks();
 }
 
 void SrcSnkDDA::analyze(SVFModule* module)
 {
 
-   // initialize(module);//in module, stored the functionset, globalset and so on
+   initialize(module);//in module, stored the functionset, globalset and so on
 
     ContextCond::setMaxCxtLen(Options::CxtLimit());
 
