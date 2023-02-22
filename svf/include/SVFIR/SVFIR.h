@@ -44,6 +44,7 @@ class SVFIR : public IRGraph
 {
 
     friend class SVFIRBuilder;
+    friend class UseAfterFreeChecker;
     friend class ExternalPAG;
     friend class PAGBuilderFromFile;
     friend class TypeBasedHeapCloning;

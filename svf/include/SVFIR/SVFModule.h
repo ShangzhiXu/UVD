@@ -42,6 +42,7 @@ class SVFModule
 {
 public:
     typedef std::vector<const SVFFunction*> FunctionSetType;
+    typedef std::vector<NodeID> SrcSnkNodeSetType;
     typedef std::vector<SVFGlobalValue*> GlobalSetType;
     typedef std::vector<SVFGlobalValue*> AliasSetType;
     typedef std::vector<SVFConstant*> ConstantType;
@@ -64,6 +65,7 @@ private:
     std::string moduleIdentifier;
     FunctionSetType FunctionSet;  ///< The Functions in the module
     FunctionSetType SrcSnkSet;
+    SrcSnkNodeSetType SrcSnkNodeSet;
     GlobalSetType GlobalSet;      ///< The Global Variables in the module
     AliasSetType AliasSet;        ///< The Aliases in the module
     ConstantType ConstantSet;        ///< The ConstantData in the module
@@ -104,6 +106,10 @@ public:
     }
     inline void addSrcSnkSet(SVFFunction* svfFunc){
         SrcSnkSet.push_back(svfFunc);
+    }
+    inline void addICFGNodeSet(NodeID icfgnode)
+    {
+        SrcSnkNodeSet.push_back(icfgnode);
     }
     inline void addGlobalSet(SVFGlobalValue* glob)
     {
@@ -217,6 +223,10 @@ public:
     inline const FunctionSetType& getSrcSnkSet() const
     {
         return SrcSnkSet;
+    }
+    inline const SrcSnkNodeSetType & getSrcSnkNodeSet() const
+    {
+        return SrcSnkNodeSet;
     }
     inline const ConstantType& getConstantSet() const
     {

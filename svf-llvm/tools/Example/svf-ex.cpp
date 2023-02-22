@@ -39,7 +39,7 @@ using namespace SVF;
 /*!
  * An example to query alias results of two LLVM values
  */
-SVF::AliasResult aliasQuery(PointerAnalysis* pta, SVFValue* v1, SVFValue* v2)
+SVF::AliasResult aliasQuery(PointerAnalysis* pta, NodeID v1, NodeID v2)
 {
     return pta->alias(v1,v2);
 }
@@ -163,10 +163,10 @@ int main(int argc, char ** argv)
     Andersen* ander = AndersenWaveDiff::createAndersenWaveDiff(pag);
 
     /// Query aliases
-    /// aliasQuery(ander,value1,value2);
+    aliasQuery(ander,1,2);
 
     /// Print points-to information
-    /// printPts(ander, value1);
+    // printPts(ander, value1);
 
     /// Call Graph
     PTACallGraph* callgraph = ander->getPTACallGraph();

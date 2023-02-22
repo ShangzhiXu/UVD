@@ -223,6 +223,7 @@ LoadStmt* SVFIR::addLoadStmt(NodeID src, NodeID dst)
 StoreStmt* SVFIR::addStoreStmt(NodeID src, NodeID dst, const IntraICFGNode* curVal)
 {
     SVFVar* srcNode = getGNode(src);
+    auto a = srcNode->toString();
     SVFVar* dstNode = getGNode(dst);
     if(hasLabeledEdge(srcNode,dstNode, SVFStmt::Store, curVal))
         return nullptr;

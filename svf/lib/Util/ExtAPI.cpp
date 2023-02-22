@@ -549,8 +549,11 @@ int ExtAPI::is_ext(const SVFFunction* F)
     assert(F && "Null SVFFunction* pointer");
     int res;
     ExtAPI::extType t = get_type(F);
-    if (t == EFT_ALLOC || t == EFT_FREE){
+    if (t == EFT_ALLOC){
         res = 2;
+    }
+    else if(t == EFT_FREE){
+        res = 3;
     }
     else if (F->isDeclaration() || F->isIntrinsic())
     {

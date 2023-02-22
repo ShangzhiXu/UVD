@@ -39,6 +39,7 @@
 #include "Util/Options.h"
 #include "SVF-LLVM/CHGBuilder.h"
 
+
 using namespace std;
 using namespace SVF;
 using namespace SVFUtil;
@@ -698,7 +699,13 @@ void SVFIRBuilder::visitGlobal(SVFModule* svfModule)
  */
 void SVFIRBuilder::visitAllocaInst(AllocaInst &inst)
 {
+    std::string str;
 
+    llvm::raw_string_ostream ss(str);
+
+    inst.print(ss);
+
+    ss.flush();
     // AllocaInst should always be a pointer type
     assert(SVFUtil::isa<PointerType>(inst.getType()));
 
@@ -742,11 +749,27 @@ void SVFIRBuilder::visitPHINode(PHINode &inst)
  */
 void SVFIRBuilder::visitLoadInst(LoadInst &inst)
 {
+    std::string str;
+
+    llvm::raw_string_ostream ss(str);
+
+    inst.print(ss);
+
+    ss.flush();
+
     DBOUT(DPAGBuild, outs() << "process load  " << LLVMModuleSet::getLLVMModuleSet()->getSVFValue(&inst)->toString() << " \n");
 
     NodeID dst = getValueNode(&inst);
 
     NodeID src = getValueNode(inst.getPointerOperand());
+    //Value *src_operand = inst;
+    Value *ptr_operand = inst.getPointerOperand();
+    std::string output_str;
+    llvm::raw_string_ostream rso(output_str);
+    ptr_operand->print(rso, true /* IsForDebug */);
+
+    // at least till here, we are correct
+    // we can use the node number acutally
 
     addLoadEdge(src, dst);
 }
@@ -764,7 +787,12 @@ void SVFIRBuilder::visitStoreInst(StoreInst &inst)
     NodeID dst = getValueNode(inst.getPointerOperand());
 
     NodeID src = getValueNode(inst.getValueOperand());
-
+    Value *src_operand = inst.getValueOperand();
+    Value *ptr_operand = inst.getPointerOperand();
+    std::string output_str;
+    llvm::raw_string_ostream rso(output_str);
+    ptr_operand->printAsOperand(rso, true /* IsForDebug */);
+    src_operand->printAsOperand(rso, true /* IsForDebug */);
     addStoreEdge(src, dst);
 
 }

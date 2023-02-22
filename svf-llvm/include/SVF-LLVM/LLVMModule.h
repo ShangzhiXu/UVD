@@ -34,7 +34,6 @@
 #include "Util/CppUtil.h"
 #include "SVFIR/SVFValue.h"
 #include "SVFIR/SVFModule.h"
-#include "SABER/UseAfterFreeChecker.h"
 
 namespace SVF
 {
@@ -199,9 +198,8 @@ public:
     const Instruction* getLLVMInst(const SVFInstruction* svfInst) const
     {
         SVFInst2LLVMInstMap::const_iterator it = SVFInst2LLVMInst.find(svfInst);
-        //assert(it!=SVFInst2LLVMInst.end() && "can't find corresponding llvm value!");
-        if (it!=SVFInst2LLVMInst.end())
-            return it->second;
+        assert(it!=SVFInst2LLVMInst.end() && "can't find corresponding llvm value!");
+        return it->second;
     }
 
     inline SVFFunction* getSVFFunction(const Function* fun) const

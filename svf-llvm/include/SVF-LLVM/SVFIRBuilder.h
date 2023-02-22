@@ -31,6 +31,7 @@
 #define PAGBUILDER_H_
 
 #include "SVFIR/SVFIR.h"
+#include "Graphs/IRGraph.h"
 #include "Util/ExtAPI.h"
 #include "SVF-LLVM/BasicTypes.h"
 #include "SVF-LLVM/ICFGBuilder.h"
@@ -40,6 +41,7 @@ namespace SVF
 {
 
 class SVFModule;
+enum state {forward, backward};// analysis state
 /*!
  *  SVFIR Builder to create SVF variables and statements and PAG
  */
@@ -48,11 +50,19 @@ class SVFIRBuilder: public llvm::InstVisitor<SVFIRBuilder>
 
 private:
     SVFIR* pag;
+    state analysis_state;
     SVFModule* svfModule;
     const SVFBasicBlock* curBB;	///< Current basic block during SVFIR construction when visiting the module
     const SVFValue* curVal;	///< Current Value during SVFIR construction when visiting the module
 
 public:
+    typedef Set<const CallICFGNode*> CallSiteSet;
+    void setState(state s){
+        analysis_state = s;
+    }
+    state getState(){
+        return analysis_state;
+    }
     /// Constructor
     SVFIRBuilder(SVFModule* mod): pag(SVFIR::getPAG()), svfModule(mod), curBB(nullptr),curVal(nullptr)
     {

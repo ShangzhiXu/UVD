@@ -103,7 +103,7 @@ void AndersenBase::finalize()
 void AndersenBase::analyze()
 {
     /// Initialization for the Solver
-    initialize();
+    initialize();//set worklist and so on
 
     bool readResultsFromFile = false;
     if(!Options::ReadAnder().empty())
@@ -193,13 +193,13 @@ void AndersenBase::normalizePointsTo()
  */
 void Andersen::initialize()
 {
-    resetData();
+    resetData();// set everything to 0
     AndersenBase::initialize();
 
     if (Options::ClusterAnder()) cluster();
 
     /// Initialize worklist
-    processAllAddr();
+    processAllAddr();// put add stmt into worklist
 }
 
 /*!
@@ -302,6 +302,7 @@ void Andersen::processAllAddr()
     for (ConstraintGraph::const_iterator nodeIt = consCG->begin(), nodeEit = consCG->end(); nodeIt != nodeEit; nodeIt++)
     {
         ConstraintNode * cgNode = nodeIt->second;
+
         for (ConstraintNode::const_iterator it = cgNode->incomingAddrsBegin(), eit = cgNode->incomingAddrsEnd();
                 it != eit; ++it)
             processAddr(SVFUtil::cast<AddrCGEdge>(*it));

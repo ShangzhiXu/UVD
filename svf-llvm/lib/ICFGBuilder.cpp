@@ -135,17 +135,18 @@ void ICFGBuilder::processFunBody(SVFModule* svfModule,WorkList& worklist)
                     RetICFGNode* retICFGNode = getRetICFGNode(svfinst);
                     srcNode = retICFGNode;
                     if (const SVFCallInst* svfcallinst = SVFUtil::dyn_cast<SVFCallInst>(svfinst)){
-                        SVFFunction* srcsnk = const_cast<SVFFunction*>(
-                            *(find(svfModule->getSrcSnkSet().begin(),
-                                   svfModule->getSrcSnkSet().end(),
-                                   svfcallinst->getCalledFunction())));
 
-                        if (srcsnk != *svfModule->getSrcSnkSet().end() || isExtCall(svfcallinst->getCalledFunction()))
+                        if (isExtCall(svfcallinst->getCalledFunction()))
                         {
-                            //handle alloc and free
+                            //handle extern call, origin ICFG does not have such information
                             IntraICFGNode* intraICFGNode = icfg->addIntraBlock(svfinst);
                             icfg->addIntraEdge(srcNode, intraICFGNode);
                             srcNode = intraICFGNode;
+                            //handle free node
+                            if (isExtCall_UVD(svfcallinst->getCalledFunction()) == 3)
+                            {
+                                svfModule->addICFGNodeSet(intraICFGNode->getId());
+                            }
                         }
                     }
                 }

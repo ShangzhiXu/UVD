@@ -464,7 +464,7 @@ private:
     const CallICFGNode* callBlockNode;
 public:
     RetICFGNode(NodeID id, const SVFInstruction* c, CallICFGNode* cb) :
-        InterICFGNode(id, FunRetBlock), cs(c), actualRet(nullptr), callBlockNode(cb)
+          InterICFGNode(id, FunRetBlock), cs(c), actualRet(nullptr), callBlockNode(cb)
     {
         fun = cs->getFunction();
         bb = cs->getParent();

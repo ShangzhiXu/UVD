@@ -26,28 +26,19 @@
  // Author: Yulei Sui,
  */
 
-#include "SABER/DoubleFreeChecker.h"
-#include "SABER/FileChecker.h"
-#include "SABER/LeakChecker.h"
-#include "SABER/UseAfterFreeChecker.h"
+//#include "SABER/UseAfterFreeChecker.h"
 #include "SVF-LLVM/LLVMUtil.h"
 #include "SVF-LLVM/SVFIRBuilder.h"
 #include "Util/CommandLine.h"
 #include "Util/Options.h"
-#include "Util/Z3Expr.h"
 #include "Util/PTAStat.h"
 #include "Graphs/ICFG.h"
 #include <iomanip>
-#include "SVF-LLVM/SVFIRBuilder.h"
 #include "SVFIR/SVFModule.h"
-#include "Util/SVFUtil.h"
 #include "SVF-LLVM/BasicTypes.h"
-#include "SVF-LLVM/LLVMUtil.h"
-#include "Util/CppUtil.h"
 #include "SVFIR/SVFValue.h"
 #include "SVFIR/PAGBuilderFromFile.h"
-#include "SVF-LLVM/LLVMLoopAnalysis.h"
-#include "Util/Options.h"
+#include "WPA/Andersen.h"
 #include "SVF-LLVM/CHGBuilder.h"
 
 using namespace llvm;
@@ -69,48 +60,111 @@ int main(int argc, char ** argv)
     LLVMModuleSet* llvmModuleSet = LLVMModuleSet::getLLVMModuleSet();
     SVFModule* svfModule = llvmModuleSet->buildSVFModule(moduleNameVec);//create the module, init, create id for each val and each instruction and so on
     SVFIRBuilder builder(svfModule);
-    SVFIR* pag = builder.build_icfg();// create pag(program assignment graph)
+    SVFIR* pag = builder.build();// create pag(program assignment graph)
 
-    std::unique_ptr<UseAfterFreeChecker> uvd = std::make_unique<UseAfterFreeChecker>();
+    //UseAfterFreeChecker uvd = UseAfterFreeChecker(svfModule);
 
 
 
     //uvd->runOnModule(pag);
     ICFG* icfg = pag->getICFG();
-    NodeID nodeid = 1;
-    ICFGNode* iNode = icfg->getICFGNode(nodeid);
-    FIFOWorkList<const ICFGNode*> worklist;
-    string string1 = iNode->toString();
-    Set<const ICFGNode*> visited;
-    worklist.push(iNode);
 
-    /// Traverse along VFG
-    while (!worklist.empty())
-    {
-        const ICFGNode* vNode = worklist.pop();
-        for (ICFGNode::const_iterator it = vNode->OutEdgeBegin(), eit = vNode->OutEdgeEnd(); it != eit; ++it)
+    Andersen* ander = AndersenWaveDiff::createAndersenWaveDiff(pag);
+
+    ICFGNode* iNode;
+
+    FIFOWorkList<const ICFGNode*> worklist;
+
+    auto srcsnkNodeSet = svfModule->getSrcSnkNodeSet();
+
+    builder.setState(SVF::backward);
+    //backwardanalysis
+    for (auto nodeid = srcsnkNodeSet.begin(); nodeid != srcsnkNodeSet.end(); nodeid++){
+
+        iNode = icfg->getICFGNode(*nodeid);
+
+        string string1 = iNode->toString();
+
+        worklist.push(iNode);
+        /// Traverse along ICFG backwardly
+        while (!worklist.empty())
         {
-            ICFGEdge* edge = *it;
-            ICFGNode* succNode = edge->getDstNode();
-            if (visited.find(succNode) == visited.end())
+            const ICFGNode* vNode = worklist.pop();
+            for (ICFGNode::const_iterator it = vNode->InEdgeBegin(), eit = vNode->InEdgeEnd(); it != eit; ++it)
             {
-                visited.insert(succNode);
-                if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(succNode)){
-                    const SVFInstruction* svfstmts = const_cast<SVFInstruction*>(intraNode->getInst());
-                    const Instruction* inst = static_cast<const Instruction*>(
-                        llvmModuleSet->getLLVMInst(svfstmts));
+                ICFGEdge* edge = *it;
+
+                ICFGNode* preNode = edge->getSrcNode();
+
+                if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(preNode)){
+
+                    SVFInstruction* svfstmts = (SVFInstruction*)(intraNode->getInst());
+
+                    Instruction* inst = (Instruction*)(
+                            llvmModuleSet->getLLVMInst(svfstmts));
                     //here, we successfully get the instruction from the ICFG nodes
+                    builder.visit(const_cast<Instruction&>(*inst));
                     std::string str;
+
                     llvm::raw_string_ostream ss(str);
+
                     inst->print(ss);
+
                     ss.flush();
+
                     cout << str << endl;
                 }
+
+                worklist.push(preNode);
+            }
+        }
+
+        cout << endl;
+    }
+    builder.setState(SVF::forward);
+    //forward analysis
+    for (auto nodeid = srcsnkNodeSet.begin(); nodeid != srcsnkNodeSet.end(); nodeid++){
+
+        iNode = icfg->getICFGNode(*nodeid);
+
+        string string1 = iNode->toString();
+
+        worklist.push(iNode);
+        /// Traverse along ICFG backwardly
+        while (!worklist.empty())
+        {
+            const ICFGNode* vNode = worklist.pop();
+            for (ICFGNode::const_iterator it = vNode->OutEdgeBegin(), eit = vNode->OutEdgeEnd(); it != eit; ++it)
+            {
+                ICFGEdge* edge = *it;
+
+                ICFGNode* succNode = edge->getDstNode();
+
+                if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(succNode)){
+
+                    SVFInstruction* svfstmts = (SVFInstruction*)(intraNode->getInst());
+
+                    Instruction* inst = (Instruction*)(
+                        llvmModuleSet->getLLVMInst(svfstmts));
+                    //here, we successfully get the instruction from the ICFG nodes
+                    builder.visit(const_cast<Instruction&>(*inst));
+                    std::string str;
+
+                    llvm::raw_string_ostream ss(str);
+
+                    inst->print(ss);
+
+                    ss.flush();
+
+                    cout << str << endl;
+                }
+
                 worklist.push(succNode);
             }
         }
-    }
 
+        cout << endl;
+    }
 
     icfg->dump("icfg_initial");
     delete[] arg_value;

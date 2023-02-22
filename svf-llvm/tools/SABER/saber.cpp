@@ -29,7 +29,6 @@
 #include "SABER/DoubleFreeChecker.h"
 #include "SABER/FileChecker.h"
 #include "SABER/LeakChecker.h"
-#include "SABER/UseAfterFreeChecker.h"
 #include "SVF-LLVM/LLVMUtil.h"
 #include "SVF-LLVM/SVFIRBuilder.h"
 #include "Util/CommandLine.h"
@@ -59,7 +58,7 @@ static Option<bool> DFREECHECKER(
 
 int main(int argc, char ** argv)
 {
-    //hello();
+
     char **arg_value = new char*[argc];
     std::vector<std::string> moduleNameVec;
     moduleNameVec = OptionBase::parseOptions(

@@ -110,7 +110,7 @@ bool CoreBitVector::contains(const CoreBitVector &rhs) const
 }
 
 bool CoreBitVector::intersects(const CoreBitVector &rhs) const
-{
+{// do not understand
     // TODO: want some common iteration method.
     if (empty() && rhs.empty()) return false;
 
