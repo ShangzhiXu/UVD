@@ -53,6 +53,8 @@ SVFIR* SVFIRBuilder::build()
 {
     double startTime = SVFStat::getClk(true);
 
+    setState(none);
+
     DBOUT(DGENERAL, outs() << pasMsg("\t Building SVFIR ...\n"));
 
     // Set SVFModule from SVFIRBuilder
@@ -642,6 +644,91 @@ void SVFIRBuilder::InitialGlobal(const GlobalVariable *gvar, Constant *C,
 }
 
 /*!
+ *  Manage alias during the analysis
+ */
+
+void SVFIRBuilder::getAlias(NodeID src, NodeID dst)
+{
+    if (aliasSets.empty()){
+        AliasSet* aliasSet = new AliasSet();
+        aliasSet->insert(src);
+        aliasSet->insert(dst);
+        int index = 0;
+        aliasSets.insert(pair< int,AliasSet >(index, *aliasSet));
+    }
+    else
+    {
+        bool notFound = true;
+        for (auto index = aliasSets.begin(); index != aliasSets.end(); index++)
+        {
+
+            if (index->second.find(src) != index->second.end()){
+                index->second.insert(dst);
+                notFound = false;
+                break;
+            }
+            if (index->second.find(dst) != index->second.end()){
+                index->second.insert(src);
+                notFound = false;
+                break;
+            }
+
+        }
+        if (notFound){
+            AliasSet* aliasSet = new AliasSet();
+            aliasSet->insert(src);
+            aliasSet->insert(dst);
+            currentIndex += 1;
+            int index = currentIndex;
+            aliasSets.insert(pair< int,AliasSet >(index, *aliasSet));
+        }
+    }
+
+    //get intersection & union
+    AliasSets tmpSets;
+    for (auto index = aliasSets.begin(); index != aliasSets.end(); index++)
+    {
+        auto index_next = index;
+        index_next++;
+        for (; index_next != aliasSets.end(); index_next++)
+        {
+            auto srcPart = index->second;
+            auto dstPart = index_next->second;
+            AliasSet intersection;
+            AliasSet convergence;
+            set_intersection(srcPart.begin(), srcPart.end(), dstPart.begin(), dstPart.end(), inserter(intersection, intersection.begin()));
+            set_union(srcPart.begin(), srcPart.end(), dstPart.begin(), dstPart.end(), inserter(convergence, convergence.begin()));
+            if(intersection.empty()){// have something similar
+                tmpSets.insert(*index);
+
+                tmpSets.insert(*index_next);
+
+            }
+            else{
+                tmpSets.insert(pair<int, AliasSet>(index->first, convergence));
+            }
+        }
+    }
+    if(!tmpSets.empty()){
+        aliasSets.clear();
+        for (auto index = tmpSets.begin(); index != tmpSets.end(); index++){
+            aliasSets.insert(pair<int, AliasSet>(index->first, index->second));
+        }
+    }
+    currentAliasSet = nullptr;
+    for (auto index = aliasSets.begin(); index != aliasSets.end(); index++)
+    {
+
+        if (index->second.find(currentFreeNode) != index->second.end()){
+
+            if (currentAliasSet == nullptr || index->second.size() > currentAliasSet->size())
+                currentAliasSet = &(index->second);
+
+        }
+
+    }
+}
+/*!
  *  Visit global variables for building SVFIR
  */
 void SVFIRBuilder::visitGlobal(SVFModule* svfModule)
@@ -714,6 +801,9 @@ void SVFIRBuilder::visitAllocaInst(AllocaInst &inst)
 
     NodeID src = getObjectNode(&inst);
 
+    if (getState() != none)
+        getAlias(src,dst);
+
     addAddrEdge(src, dst);
 
 }
@@ -762,14 +852,13 @@ void SVFIRBuilder::visitLoadInst(LoadInst &inst)
     NodeID dst = getValueNode(&inst);
 
     NodeID src = getValueNode(inst.getPointerOperand());
-    //Value *src_operand = inst;
-    Value *ptr_operand = inst.getPointerOperand();
-    std::string output_str;
-    llvm::raw_string_ostream rso(output_str);
-    ptr_operand->print(rso, true /* IsForDebug */);
 
-    // at least till here, we are correct
-    // we can use the node number acutally
+    //Value *ptr_operand = inst.getPointerOperand();
+    //std::string output_str;
+    //llvm::raw_string_ostream rso(output_str);
+    //ptr_operand->print(rso, true /* IsForDebug */);
+    if (getState() != none)
+        getAlias(src,dst);
 
     addLoadEdge(src, dst);
 }
@@ -787,12 +876,10 @@ void SVFIRBuilder::visitStoreInst(StoreInst &inst)
     NodeID dst = getValueNode(inst.getPointerOperand());
 
     NodeID src = getValueNode(inst.getValueOperand());
-    Value *src_operand = inst.getValueOperand();
-    Value *ptr_operand = inst.getPointerOperand();
-    std::string output_str;
-    llvm::raw_string_ostream rso(output_str);
-    ptr_operand->printAsOperand(rso, true /* IsForDebug */);
-    src_operand->printAsOperand(rso, true /* IsForDebug */);
+
+    if (getState() != none)
+        getAlias(src,dst);
+
     addStoreEdge(src, dst);
 
 }
@@ -820,6 +907,10 @@ void SVFIRBuilder::visitGetElementPtrInst(GetElementPtrInst &inst)
 
     LocationSet ls;
     bool constGep = computeGepOffset(&inst, ls);
+
+    if (getState() != none)
+        getAlias(src,dst);
+
     addGepEdge(src, dst, ls, constGep);
 }
 
@@ -844,6 +935,8 @@ void SVFIRBuilder::visitCastInst(CastInst &inst)
 
         NodeID src = getValueNode(opnd);
         addCopyEdge(src, dst);
+        if (getState() != none)
+            getAlias(src,dst);
     }
 }
 
@@ -932,7 +1025,10 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
     if(isIntrinsicInst(cs))
         return;
 
+
     const SVFInstruction* svfcall = LLVMModuleSet::getLLVMModuleSet()->getSVFInstruction(cs);
+    const SVFFunction* svfcallee = getCallee(svfcall);
+
 
     DBOUT(DPAGBuild,
           outs() << "process callsite " << svfcall->toString() << "\n");
@@ -943,8 +1039,17 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
     pag->addCallSite(callBlockNode);
 
     /// Collect callsite arguments and returns
-    for (u32_t i = 0; i < cs->arg_size(); i++)
+    for (u32_t i = 0; i < cs->arg_size(); i++){
         pag->addCallSiteArgs(callBlockNode,pag->getGNode(getValueNode(cs->getArgOperand(i))));
+        NodeID argID = getValueNode(cs->getArgOperand(i));
+        if (has_set == true && getState() == forward && isExtCall_UVD(svfcallee) == 1){
+
+            if(currentAliasSet->find(argID) != currentAliasSet->end())
+                // report bug
+                cout<<"UAF!! argnode "<<argID<<endl;
+        }
+
+    }
 
     if(!cs->getType()->isVoidTy())
         pag->addCallSiteRets(retBlockNode,pag->getGNode(getValueNode(cs)));
@@ -952,6 +1057,33 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
     if (const Function *callee = LLVMUtil::getCallee(cs))
     {
         const SVFFunction* svfcallee = LLVMModuleSet::getLLVMModuleSet()->getSVFFunction(callee);
+        if (isExtCall_UVD(svfcallee) == 3 && has_set == false){
+
+            NodeID argID = getValueNode(cs->getArgOperand(0));
+            currentFreeNode = argID;
+            for (auto index = aliasSets.begin(); index != aliasSets.end(); index++)
+            {
+
+               if (index->second.find(argID) != index->second.end()){
+
+                    if (currentAliasSet == nullptr || index->second.size() > currentAliasSet->size())
+                        currentAliasSet = &(index->second);
+
+                }
+
+            }
+            has_set = true;
+        }
+
+        /*NodeID dstrec = getValueNode(cs);
+        const SVFFunction* svffun = LLVMModuleSet::getLLVMModuleSet()->getSVFFunction(callee);
+        NodeID srcret = getReturnNode(svffun);
+        if(getState()!=none){
+            if(isExtCall_UVD(svfcallee) != 2 && isExtCall_UVD(svfcallee) != 3)
+                getAlias(dstrec,srcret);
+            return;
+        }
+        */
         if (isExtCall(svfcallee))
         {
             // There is no extpag for the function, use the old method.
@@ -1760,11 +1892,11 @@ void SVFIRBuilder::setCurrentBBAndValueForPAGEdge(PAGEdge* edge)
         const SVFFunction* dstFun = edge->getDstNode()->getFunction();
         if(srcFun!=nullptr && !SVFUtil::isa<RetPE>(edge) && !SVFUtil::isa<SVFFunction>(edge->getSrcNode()->getValue()))
         {
-            assert(srcFun==curInst->getFunction() && "SrcNode of the PAGEdge not in the same function?");
+           // assert(srcFun==curInst->getFunction() && "SrcNode of the PAGEdge not in the same function?");
         }
         if(dstFun!=nullptr && !SVFUtil::isa<CallPE>(edge) && !SVFUtil::isa<SVFFunction>(edge->getDstNode()->getValue()))
         {
-            assert(dstFun==curInst->getFunction() && "DstNode of the PAGEdge not in the same function?");
+          //  assert(dstFun==curInst->getFunction() && "DstNode of the PAGEdge not in the same function?");
         }
 
         /// We assume every GepValVar and its GepStmt are unique across whole program

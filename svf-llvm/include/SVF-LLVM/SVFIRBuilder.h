@@ -36,12 +36,14 @@
 #include "SVF-LLVM/BasicTypes.h"
 #include "SVF-LLVM/ICFGBuilder.h"
 #include "SVF-LLVM/LLVMModule.h"
+#include <map>
+#include <algorithm>
 
 namespace SVF
 {
 
 class SVFModule;
-enum state {forward, backward};// analysis state
+enum state {forward, backward, none};// analysis state
 /*!
  *  SVFIR Builder to create SVF variables and statements and PAG
  */
@@ -52,11 +54,19 @@ private:
     SVFIR* pag;
     state analysis_state;
     SVFModule* svfModule;
+
     const SVFBasicBlock* curBB;	///< Current basic block during SVFIR construction when visiting the module
     const SVFValue* curVal;	///< Current Value during SVFIR construction when visiting the module
 
 public:
-    typedef Set<const CallICFGNode*> CallSiteSet;
+    typedef std::set<const NodeID> AliasSet;
+    typedef std::map<const int, AliasSet> AliasSets;
+    AliasSets aliasSets;
+    int currentIndex = 0;
+    NodeID currentFreeNode;
+    AliasSet* currentAliasSet = new AliasSet();
+    bool has_set;
+    void getAlias(NodeID src, NodeID dst);
     void setState(state s){
         analysis_state = s;
     }
@@ -66,6 +76,7 @@ public:
     /// Constructor
     SVFIRBuilder(SVFModule* mod): pag(SVFIR::getPAG()), svfModule(mod), curBB(nullptr),curVal(nullptr)
     {
+
     }
     /// Destructor
     virtual ~SVFIRBuilder()
