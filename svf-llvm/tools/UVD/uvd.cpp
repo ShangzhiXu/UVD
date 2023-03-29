@@ -110,14 +110,17 @@ int main(int argc, char ** argv)
                     ss.flush();
 
                     cout << str << endl;
-                }
+                }*/
                 if (CallICFGNode* callNode = SVFUtil::dyn_cast<CallICFGNode>(preNode)){
+                    //处理call，链接跨函数问题
 
-                    auto svfstmts = callNode->getCallSite();
+                    auto cs = callNode->getCallSite();
+
+
                     Instruction* inst = (Instruction*)(
-                        llvmModuleSet->getLLVMInst(svfstmts));
-                    //here, we successfully get the instruction from the ICFG nodes
-                    builder.visit(const_cast<Instruction&>(*inst));
+                        llvmModuleSet->getLLVMInst(cs));
+
+
                     std::string str;
 
                     llvm::raw_string_ostream ss(str);
@@ -127,7 +130,14 @@ int main(int argc, char ** argv)
                     ss.flush();
 
                     cout << str << endl;
-                }*/
+
+                    //here, we successfully get the instruction from the ICFG nodes
+                    builder.visit(const_cast<Instruction&>(*inst));
+
+                }
+
+
+
                 if (IntraICFGNode* intraNode = SVFUtil::dyn_cast<IntraICFGNode>(preNode)){
 
                     SVFInstruction* svfstmts = (SVFInstruction*)(intraNode->getInst());
@@ -235,6 +245,7 @@ int main(int argc, char ** argv)
                     Instruction* inst = (Instruction*)(
                         llvmModuleSet->getLLVMInst(svfstmts));
                     //here, we successfully get the instruction from the ICFG nodes
+
                     builder.visit(const_cast<Instruction&>(*inst));
 
                     std::string str;

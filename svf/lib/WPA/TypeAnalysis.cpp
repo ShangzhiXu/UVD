@@ -48,8 +48,6 @@ void TypeAnalysis::initialize()
     if (Options::DumpICFG())
     {
         icfg = SVFIR::getPAG()->getICFG();
-        icfg->dump("icfg_initial");
-        icfg->dump("vfg_initial");
         if (print_stat)
         {
             ICFGStat stat(icfg);

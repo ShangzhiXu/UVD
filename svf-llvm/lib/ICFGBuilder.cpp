@@ -62,6 +62,7 @@ void ICFGBuilder::build(SVFModule* svfModule)
                 processFunBody(svfModule, worklist);
                 processFunExit(fun);
             }
+
         }
     }
     connectGlobalToProgEntry(svfModule);

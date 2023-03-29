@@ -405,6 +405,7 @@ ICFGEdge* ICFG::addConditionalIntraEdge(ICFGNode* srcNode, ICFGNode* dstNode, co
 ICFGEdge* ICFG::addCallEdge(ICFGNode* srcNode, ICFGNode* dstNode, const SVFInstruction*  cs)
 {
     ICFGEdge* edge = hasInterICFGEdge(srcNode,dstNode, ICFGEdge::CallCF);
+   //std::cout << "addcalledge: " << cs->toString()<< std::endl;
     if (edge != nullptr)
     {
         assert(edge->isCallCFGEdge() && "this should be a call CFG edge!");

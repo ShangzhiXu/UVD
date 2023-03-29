@@ -91,7 +91,7 @@ SVFIR* SVFIRBuilder::build()
     ///// collect exception vals in the program
 
     /// handle functions
-
+    // at here, we still can not get the information of nodes
     for (Module& M : LLVMModuleSet::getLLVMModuleSet()->getLLVMModules())
     {
         for (Module::const_iterator F = M.begin(), E = M.end(); F != E; ++F)
@@ -126,6 +126,7 @@ SVFIR* SVFIRBuilder::build()
                     pag->addFunArgs(svffun,pag->getGNode(argValNodeId));
                 }
             }
+            //pag->getICFG()->dump("icfg_initial");
             for (Function::const_iterator bit = fun.begin(), ebit = fun.end();
                     bit != ebit; ++bit)
             {//for each basic block
@@ -134,15 +135,29 @@ SVFIR* SVFIRBuilder::build()
                         it != eit; ++it)
                 {
                     const Instruction& inst = *it;
+                    std::string str;
+
+                    llvm::raw_string_ostream ss(str);
+
+                    inst.print(ss);
+
+                    ss.flush();
+
+                    cout << str << endl;
                     setCurrentLocation(&inst,&bb);
+                    pag->getICFG()->dump("icfg_initial");
                     visit(const_cast<Instruction&>(inst));
+                    pag->getICFG()->dump("icfg_initial");
                     //here, use override to visit each sentence, then add edges in the pag
                     //we do not need to add assignment information in icfg
                 }
             }
+            //in each iteration, it will add the information of nodes to one function
+           // pag->getICFG()->dump("icfg_initial");
         }
-    }
 
+    }
+    //we get the information here
     sanityCheck();// unfinished
 
     pag->initialiseCandidatePointers();
@@ -1028,17 +1043,45 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
 
     const SVFInstruction* svfcall = LLVMModuleSet::getLLVMModuleSet()->getSVFInstruction(cs);
     const SVFFunction* svfcallee = getCallee(svfcall);
-
+    //cout << "process callsite " << svfcall->toString() << "\n";
 
     DBOUT(DPAGBuild,
           outs() << "process callsite " << svfcall->toString() << "\n");
 
     CallICFGNode* callBlockNode = pag->getICFG()->getCallICFGNode(svfcall);
     RetICFGNode* retBlockNode = pag->getICFG()->getRetICFGNode(svfcall);
-
+    pag->getICFG()->dump("icfg_initial");
     pag->addCallSite(callBlockNode);
-
     /// Collect callsite arguments and returns
+
+    // get alias through call and arg
+    u32_t itA = 0, ieA = cs->arg_size();
+
+    const Function *F = LLVMUtil::getCallee(cs);
+
+    Function::const_arg_iterator itF = F->arg_begin(), ieF = F->arg_end();
+    //Go through the fixed parameters.
+    DBOUT(DPAGBuild, outs() << "      args:");
+    for (; itF != ieF; ++itA, ++itF)
+    {
+        //Some programs (e.g. Linux kernel) leave unneeded parameters empty.
+        if (itA == ieA)
+        {
+            DBOUT(DPAGBuild, outs() << " !! not enough args\n");
+            break;
+        }
+        const Value* AA = cs->getArgOperand(itA), *FA = &*itF; //current actual/formal arg
+
+        NodeID dst = getValueNode(FA);
+        NodeID src = getValueNode(AA);
+
+        if (getState() != none)
+            getAlias(src,dst);
+
+        addStoreEdge(src, dst);
+
+    }
+
     for (u32_t i = 0; i < cs->arg_size(); i++){
         pag->addCallSiteArgs(callBlockNode,pag->getGNode(getValueNode(cs->getArgOperand(i))));
         NodeID argID = getValueNode(cs->getArgOperand(i));
@@ -1051,6 +1094,7 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
 
     }
 
+    pag->getICFG()->dump("icfg_initial");
     if(!cs->getType()->isVoidTy())
         pag->addCallSiteRets(retBlockNode,pag->getGNode(getValueNode(cs)));
 
@@ -1074,6 +1118,7 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
             }
             has_set = true;
         }
+        pag->getICFG()->dump("icfg_initial");
 
         /*NodeID dstrec = getValueNode(cs);
         const SVFFunction* svffun = LLVMModuleSet::getLLVMModuleSet()->getSVFFunction(callee);
@@ -1093,6 +1138,7 @@ void SVFIRBuilder::visitCallSite(CallBase* cs)
         {
             handleDirectCall(cs, callee);
         }
+        pag->getICFG()->dump("icfg_initial");
     }
     else
     {
